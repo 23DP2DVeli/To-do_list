@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do List</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h2>To-Do List</h2>
+        <div class="input-group">
+            <input id="title" type="text" placeholder="Uzdevuma nosaukums" required>
+            <input id="description" type="text" placeholder="Apraksts">
+            <button onclick="addTask()"><i class="fas fa-plus"></i> Pievienot</button>
+        </div>
+        <ul id="taskList"></ul>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:5000/tasks";
+
+        async function loadTasks() {
+            try {
+                const res = await fetch(API_URL);
+                const tasks = await res.json();
+                
+                document.getElementById("taskList").innerHTML = tasks.map(task => `
+                    <li class="${task.status === 'pabeigts' ? 'completed' : ''}">
+                        <span>
+                            <strong>${task.title}</strong>
+                            ${task.description ? `<p>${task.description}</p>` : ''}
+                            <small>${new Date(task.createdAt).toLocaleDateString('lv-LV')}</small>
+                        </span>
+                        <div class="task-buttons">
+                            <button class="update-btn" onclick="updateTask('${task._id}', '${task.status}')">
+                                ${task.status === 'pabeigts' ? '<i class="fas fa-undo"></i> Atsākt' : '<i class="fas fa-check"></i> Pabeigt'}
+                            </button>
+                            <button class="delete-btn" onclick="deleteTask('${task._id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </li>
+                `).join("");
+            } catch (err) {
+                console.error("Failed to load tasks:", err);
+            }
+        }
+
+        async function addTask() {
+            const title = document.getElementById("title").value.trim();
+            const description = document.getElementById("description").value.trim();
+            
+            if (!title) return;
+            
+            try {
+                await fetch(API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ title, description })
+                });
+                
+                document.getElementById("title").value = "";
+                document.getElementById("description").value = "";
+                loadTasks();
+            } catch (err) {
+                console.error("Failed to add task:", err);
+            }
+        }
+
+        async function updateTask(id, currentStatus) {
+            const newStatus = currentStatus === "nepabeigts" ? "pabeigts" : "nepabeigts";
+            try {
+                await fetch(`${API_URL}/${id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                loadTasks();
+            } catch (err) {
+                console.error("Failed to update task:", err);
+            }
+        }
+
+        async function deleteTask(id) {
+            if (confirm("Vai tiešām vēlaties dzēst šo uzdevumu?")) {
+                try {
+                    await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+                    loadTasks();
+                } catch (err) {
+                    console.error("Failed to delete task:", err);
+                }
+            }
+        }
+
+        // Add event listener for the Enter key on input fields
+        document.getElementById("title").addEventListener("keypress", function(e) {
+            if (e.key === "Enter") addTask();
+        });
+        
+        document.getElementById("description").addEventListener("keypress", function(e) {
+            if (e.key === "Enter") addTask();
+        });
+
+        // Initialize
+        loadTasks();
+    </script>
+</body>
+</html>
